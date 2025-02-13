@@ -10,7 +10,7 @@ import { nanoid } from 'nanoid'
 
 /**
  * destructuring the required data from the request body
- * check if the user already exists in the database using the email
+ * check if the user already exists in the database using the email and isEmailVerified = false
  * if exists return error email is already exists
  * password hashing
  * create new document in the database
