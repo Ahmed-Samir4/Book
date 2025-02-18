@@ -1,11 +1,9 @@
 import slugify from 'slugify'
 
 import Category from '../../../DB/Models/category.model.js'
-import subCategory from '../../../DB/Models/sub-category.model.js'
-import Brand from '../../../DB/Models/brand.model.js'
 import cloudinaryConnection from '../../utils/cloudinary.js'
 import generateUniqueString from '../../utils/generate-Unique-String.js'
-import Product from '../../../DB/Models/product.model.js'
+import Book from '../../../DB/Models/book.model.js'
 import { APIFeatures } from '../../utils/api-features.js'
 
 
@@ -23,7 +21,6 @@ export const addCategory = async (req, res, next) => {
     const isNameDuplicated = await Category.findOne({ name })
     if (isNameDuplicated) {
         return next({ cause: 409, message: 'Category name is already exist' })
-        // return next( new Error('Category name is already exist' , {cause:409}) )
     }
 
     // 3- generate the slug
@@ -39,7 +36,7 @@ export const addCategory = async (req, res, next) => {
 
     req.folder = `${process.env.MAIN_FOLDER}/Categories/${folderId}`
 
-    // 5- generate the categroy object
+    // 5- generate the category object
     const category = {
         name,
         slug,
@@ -127,19 +124,9 @@ export const getAllCategories = async (req, res, next) => {
     const { page, size, sortBy } = req.query
     // nested populate
     const features = new APIFeatures(req.query, Category.find()).pagination({ page, size }).sort(sortBy)
-    const categories = await features.mongooseQuery.populate(
-        [
-            {
-                path: 'subcategories',
-                populate: [{
-                    path: 'Brands',
-                    populate: [{
-                        path: 'Products'
-                    }]
-                }]
-            }
-        ]
-    )
+
+    // populate books in the category 
+    const categories = await features.mongooseQuery.populate('books')
     // console.log(categories);
     res.status(200).json({ success: true, message: 'Categories fetched successfully', data: categories })
 }
@@ -156,28 +143,14 @@ export const deleteCategory = async (req, res, next) => {
     const category = await Category.findByIdAndDelete(categoryId)
     if (!category) return next({ cause: 404, message: 'Category not found' })
 
-    // 2-delete the related subcategories
-    const subCategories = await subCategory.deleteMany({ categoryId })
-    if (subCategories.deletedCount <= 0) {
-        console.log(subCategories.deletedCount);
-        console.log('There is no related subcategories');
-    }
-
-    //3- delete the related brands
-    const brands = await Brand.deleteMany({ categoryId })
-    if (brands.deletedCount <= 0) {
-        console.log(brands.deletedCount);
-        console.log('There is no related brands');
-    }
-
-    // 4- delete the related products
-    const products = await Product.deleteMany({ categoryId })
+    // 2- delete the related books
+    const products = await Book.deleteMany({ categoryId })
     if (products.deletedCount <= 0) {
         console.log(products.deletedCount);
-        console.log('There is no related products');
+        console.log('There is no related Books');
     }
 
-    // 5- delete the category folder from cloudinary
+    // 3- delete the category folder from cloudinary
     await cloudinaryConnection().api.delete_resources_by_prefix(`${process.env.MAIN_FOLDER}/Categories/${category.folderId}`)
     await cloudinaryConnection().api.delete_folder(`${process.env.MAIN_FOLDER}/Categories/${category.folderId}`)
 
@@ -192,29 +165,23 @@ export const deleteCategory = async (req, res, next) => {
 export const getCategory = async (req, res, next) => {
     const { categoryId } = req.params
     const features = new APIFeatures(req.query, Category.findById(categoryId))
-    const category = await features.mongooseQuery.populate([{
-        path: 'subcategories',
-        populate: [{
-            path: 'Brands',
-            populate: [{
-                path: 'Products'
-            }]
-        }]
-    }])
+    
+    const category = await features.mongooseQuery.populate('books')
     if (!category) return next({ cause: 404, message: 'Category not found' })
     res.status(200).json({ success: true, message: 'Category fetched successfully', data: category })
 }
 
+
 /**
- * @name getSubCategories
+ * @name getBooksByCategory
  * @param categoryId
- * @description get all subcategories for specific category 
+ * @description get books by category and use pagination
  */
-export const getSubCategories = async (req, res, next) => {
+export const getBooksByCategory = async (req, res, next) => {
     const { categoryId } = req.params
-    // const subCategories = await Category.findById(categoryId).populate('subcategories')
-    const features = new APIFeatures(req.query, subCategory.find({ categoryId }))
-    const subCategories = await features.mongooseQuery
-    if (!subCategories) return next({ cause: 404, message: 'Subcategories not found' })
-    res.status(200).json({ success: true, message: 'Subcategories fetched successfully', data: subCategories })
+    const { page, size, sortBy } = req.query
+    const features = new APIFeatures(req.query, Book.find({ categoryId })).pagination({ page, size }).sort(sortBy)
+    const books = await features.mongooseQuery
+    res.status(200).json({ success: true, message: 'Books fetched successfully', data: books })
+
 }

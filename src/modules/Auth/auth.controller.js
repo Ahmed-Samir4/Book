@@ -59,14 +59,19 @@ export const signUp = async (req, res, next) => {
         email,
         password: hashedPassword,
         age,
-        role,
+        role: role || 'user',
     })
 
     // 7- return the response
     res.status(201).json({
         success: true,
         message: 'User created successfully, please check your email to verify your account',
-        data: newUser
+        data: {
+            name: newUser.username,
+            email: newUser.email,
+            age: newUser.age,
+            role: newUser.role
+        }
     })
 }
 

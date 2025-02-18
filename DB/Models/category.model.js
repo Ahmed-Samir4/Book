@@ -1,6 +1,5 @@
 import mongoose, { Schema, model } from "mongoose"
 
-
 //============================== create the category schema ==============================//
 const categorySchema = new Schema(
     {
@@ -18,15 +17,15 @@ const categorySchema = new Schema(
         timestamps: true,
         toJSON: { virtuals: true },
         toObject: { virtuals: true }
-    })
+    }
+)
 
-// // virtual populate for subCategories model
-// categorySchema.virtual('subcategories', {
-//     ref: 'SubCategory',
-//     localField: '_id',
-//     foreignField: 'categoryId',
-//     // justOne: true
-// })
+// virtual populate for books model
+categorySchema.virtual('books', {
+    ref: 'Book',
+    localField: '_id',
+    foreignField: 'categoryId'
+})
 
 export default mongoose.models.Category || model('Category', categorySchema)
 

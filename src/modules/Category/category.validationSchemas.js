@@ -1,7 +1,7 @@
 import Joi from "joi";
 
 export const addCategorySchema ={
-    body: Joi.object({
+    formData: Joi.object({
         name: Joi.string().length(3).required(),
     })
 }
@@ -35,7 +35,7 @@ export const getCategorySchema ={
 //     })
 // }
 
-export const getSubCategoriesSchema ={
+export const getBooksSchema ={
     params : Joi.object({
         categoryId : Joi.string().length(24).hex().required()
     })

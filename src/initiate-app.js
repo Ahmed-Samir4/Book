@@ -5,7 +5,7 @@ import { rollbackSavedDocuments } from "./middlewares/rollback-saved-documnets.m
 import { rollbackUploadedFiles } from "./middlewares/rollback-uploaded-files.middleware.js"
 
 import * as  routers from './modules/index.routes.js'
-import { cronToChangeExpiredCoupons } from "./utils/crons.js"
+// import { cronToChangeExpiredCoupons } from "./utils/crons.js"
 
 
 export const initiateApp = (app, express) => {
@@ -20,7 +20,7 @@ export const initiateApp = (app, express) => {
     app.use('/auth', routers.authRouter)
     app.use('/user', routers.userRouter)
     app.use('/category', routers.categoryRouter)
-    app.use('/product', routers.productRouter)
+    app.use('/book', routers.bookRouter)
     app.use('/review', routers.reviewRouter)
 
     app.use('*', (req, res, next) => {
