@@ -14,7 +14,7 @@ const router = Router()
 
 router.post('/',
     auth(endPointsRoles.ADD_BOOK),
-    multerMiddleHost({ extensions: allowedExtensions.image }).array('image', 3),
+    multerMiddleHost({ extensions: allowedExtensions.image }).array('image', 100),
     validationMiddleware(addBookSchema),
     expressAsyncHandler(bookController.addBook)
 )
@@ -22,7 +22,7 @@ router.post('/',
 
 router.put('/:bookId',
     auth(endPointsRoles.ADD_BOOK),
-    multerMiddleHost({ extensions: allowedExtensions.image }).single('image'),
+    multerMiddleHost({ extensions: allowedExtensions.image }).array('image', 100),
     validationMiddleware(updateBookSchema),
     expressAsyncHandler(bookController.updateBook)
 )
@@ -30,6 +30,11 @@ router.put('/:bookId',
 router.get('/',
     validationMiddleware(getAllBooksSchema),
     expressAsyncHandler(bookController.getAllBooks)
+)
+
+router.delete('/:bookId',
+    auth(endPointsRoles.ADD_BOOK),
+    expressAsyncHandler(bookController.deleteBook)
 )
 
 

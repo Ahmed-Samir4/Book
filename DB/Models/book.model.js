@@ -6,9 +6,12 @@ const BookSchema = new Schema({
     slug: { type: String, required: true, trim: true },  /** @todo make the slug in lowercase */
     description: { type: String, required: true, trim: true },
     folderId: { type: String, required: true, unique: true },
+    categoryFolderId: { type: String, required: true, unique: true },
     language: { type: String, required: true, trim: true },
     releaseDate: { type: Date, required: true, trim: true },
     pages: { type: String, required: true, trim: true },
+
+    coverImage: { type: String, required: true },
 
     /** Arrays */
     Images: [{

@@ -60,9 +60,12 @@ export const addBook = async (req, res, next) => {
     }
     req.folder = folderPath + `${category.folderId}/Books/${folderId}`
 
+    // Cover Image
+    const coverImage = Images[0].secure_url
+
     // prepare the book object for db 
     const book = {
-        title, description, slug, language, releaseDate, pages, categoryId, authorId, addedBy, Images, folderId
+        title, description, slug, language, releaseDate, pages, categoryId, authorId, addedBy, Images, folderId, coverImage , categoryFolderId: category.folderId
     }
 
     const newBook = await Book.create(book)
@@ -114,12 +117,15 @@ export const updateBook = async (req, res, next) => {
     if (pages) book.pages = pages
 
     if (oldPublicId) {
-        if (!req.file) return next({ cause: 400, message: 'Please select new image' })
+        if (!req.files) return next({ cause: 400, message: 'Please select new image' })
 
         const folderPath = book.Images[0].public_id.split(`${book.folderId}/`)[0]
         const newPublicId = oldPublicId.split(`${book.folderId}/`)[1]
 
-        const { secure_url } = await cloudinaryConnection().uploader.upload(req.file.path, {
+        console.log(folderPath, newPublicId);
+        
+
+        const { secure_url } = await cloudinaryConnection().uploader.upload(req.files.path, {
             folder: folderPath + `${book.folderId}`,
             public_id: newPublicId
         })
@@ -129,12 +135,53 @@ export const updateBook = async (req, res, next) => {
             }
         })
         req.folder = folderPath + `${book.folderId}`
+
+        // Update cover image if it was the old cover image
+        if (book.coverImage === oldPublicId) {
+            book.coverImage = secure_url
+        }
     }
 
     await book.save()
 
     res.status(200).json({ success: true, message: 'Book updated successfully', data: book })
 }
+
+/**
+ * @name deleteBook
+ * @param {*} req params : {bookId}
+ * @param {*} req authUser :{_id}
+ * @returns the deleted book data with status 200 and success message
+ * @description delete a book from the database
+ */
+//================================================= Delete Book API ============================================//
+export const deleteBook = async (req, res, next) => {
+
+    // data for condition
+    const { bookId } = req.params
+    // data from the request authUser
+    const addedBy = req.authUser._id
+
+    // check if addedBy is not an author or admin
+    if (![systemRoles.AUTHOR, systemRoles.ADMIN, systemRoles.SUPER_ADMIN].includes(req.authUser.role)) {
+        return next({ cause: 403, message: 'You are not authorized to delete a book' })
+    }
+
+    // book Id  
+    const book = await Book.findByIdAndDelete(bookId)   
+    if (!book) return next({ cause: 404, message: 'Book not found' })
+
+
+    // Remove images from cloudinary
+    await cloudinaryConnection().api.delete_resources_by_prefix(`${process.env.MAIN_FOLDER}/Categories/${book.categoryFolderId}/Books/${book.folderId}`)
+    await cloudinaryConnection().api.delete_folder(`${process.env.MAIN_FOLDER}/Categories/${book.categoryFolderId}/Books/${book.folderId}`)
+
+
+    
+
+    res.status(200).json({ success: true, message: 'Book deleted successfully', data: book })
+}
+
 
 
 /**
@@ -146,10 +193,10 @@ export const updateBook = async (req, res, next) => {
 export const getAllBooks = async (req, res, next) => {
     const { page, size, sort, ...search } = req.query
     const features = new APIFeatures(req.query, Book.find())
-        // .sort(sort)
-        // .pagination({ page, size })
-        // .search(search)
-        // .filters(search)
+    // .sort(sort)
+    // .pagination({ page, size })
+    // .search(search)
+    // .filters(search)
 
     // const books = await features.mongooseQuery.populate([{
     //     path: 'reviews',
