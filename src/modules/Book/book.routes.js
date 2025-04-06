@@ -32,6 +32,10 @@ router.get('/',
     expressAsyncHandler(bookController.getAllBooks)
 )
 
+router.get('/:bookId',
+    expressAsyncHandler(bookController.getBookById)
+)
+
 router.delete('/:bookId',
     auth(endPointsRoles.ADD_BOOK),
     expressAsyncHandler(bookController.deleteBook)

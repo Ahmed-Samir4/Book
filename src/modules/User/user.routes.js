@@ -22,13 +22,15 @@ router.delete('/soft-delete/:userId', auth(endPointsRoles.SOFT_DELETE_USER),
     validationMiddleware(softDeleteUserSchema),
     expressAsyncHandler(userController.softDeleteUser))
 
-router.get('/:userId', auth(endPointsRoles.GET_USER),
-    validationMiddleware(getUserDataSchema),
-    expressAsyncHandler(userController.getUserData))
+// router.get('/:userId', auth(endPointsRoles.GET_USER),
+//     validationMiddleware(getUserDataSchema),
+//     expressAsyncHandler(userController.getUserData))
 
 router.put('/update-password/:userId', auth(endPointsRoles.UPDATE_PASSWORD),
     validationMiddleware(updatePasswordSchema),
     expressAsyncHandler(userController.updatePassword))
 
+router.get('/authors', auth(endPointsRoles.GET_USER),
+    expressAsyncHandler(userController.getAllAuthors))
 
 export default router;

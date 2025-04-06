@@ -174,3 +174,23 @@ export const updatePassword = async (req, res, next) => {
         message: 'Password updated successfully',
     })
 }
+
+
+/**
+ * @name getAllAuthors
+ * @description get all authors from the database
+ */
+export const getAllAuthors = async (req, res, next) => {
+    // 1- get all authors from the database
+    const authors = await User.find({ role: 'author' }).select('-password -__v -createdAt -updatedAt -isDeleted -forgetCode ') 
+    // 2- check if authors exist
+    if (!authors || authors.length === 0) {
+        return next({ cause: 404, message: 'No authors found' })
+    }
+    // 3- return authors
+    res.status(200).json({
+        success: true,
+        message: 'Authors fetched successfully',
+        data: authors
+    })
+}

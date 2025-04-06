@@ -52,6 +52,14 @@ const userSchema = new Schema({
     },
     forgetCode: {
         type: String
+    },
+    image: {
+        secure_url: {
+            type: String,
+        },
+        public_id: {
+            type: String,
+        }
     }
 }, { timestamps: true })
 

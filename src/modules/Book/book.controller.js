@@ -190,17 +190,49 @@ export const deleteBook = async (req, res, next) => {
  * @returns all books with status 200 and success message
  * @description get all books from the database
  */
+//================================= Get All Books API =================================//
 export const getAllBooks = async (req, res, next) => {
     const { page, size, sort, ...search } = req.query
     const features = new APIFeatures(req.query, Book.find())
-    // .sort(sort)
-    // .pagination({ page, size })
-    // .search(search)
-    // .filters(search)
+    .sort(sort)
+    .pagination({ page, size })
+    .search(search)
+    .filters(search)
 
     // const books = await features.mongooseQuery.populate([{
     //     path: 'reviews',
     // }])
+
+    //return name of the author and category
+    features.mongooseQuery = features.mongooseQuery
+        .populate({ path: 'authorId', select: 'username' })
+        .populate({ path: 'categoryId', select: 'name' })
+        // .populate({ path: 'reviews', select: 'name' })
+        .select('-__v -createdAt -updatedAt -Images -folderId -addedBy -categoryFolderId ')
+
+        
     const books = await features.mongooseQuery
+    
     res.status(200).json({ success: true, data: books })
+}
+
+/**
+ * @name getBook
+ * @param {*} req params : {bookId}
+ * @returns the book data with status 200 and success message
+ * @description get a book from the database
+ */
+//================================= Get Book API =================================//
+export const getBookById = async (req, res, next) => {
+    // data for condition
+    const { bookId } = req.params
+
+    // book Id  
+    const book = await Book.findById(bookId)
+        .populate({ path: 'authorId' , select: 'username description age' })
+        .populate({ path: 'categoryId', select: 'name' })
+        .select('-__v -createdAt -updatedAt')
+    if (!book) return next({ cause: 404, message: 'Book not found' })
+
+    res.status(200).json({ success: true, data: book })
 }
