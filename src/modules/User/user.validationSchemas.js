@@ -35,10 +35,16 @@ export const getUserDataSchema ={
 
 export const updatePasswordSchema ={
     params : Joi.object({
-        userId : Joi.string().length(24).hex().required()
+        userId : Joi.string().hex().length(24).required()
     }),
     body: Joi.object({
         oldPassword: Joi.string().required(),
         newPassword: Joi.string().required()
     })
+}
+
+export const getAllAuthorsSchema = {
+    params: Joi.object({}).optional(),
+    query: Joi.object({}).optional(),
+    body: Joi.object({}).optional()
 }

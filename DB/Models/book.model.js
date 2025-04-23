@@ -11,7 +11,16 @@ const BookSchema = new Schema({
     releaseDate: { type: Date, required: true, trim: true },
     pages: { type: String, required: true, trim: true },
 
-    coverImage: { type: String, required: true },
+    coverImage: { 
+        secure_url: { type: String, required: true },
+        public_id: { type: String, required: true, unique: true }
+    },
+
+    pdf: {
+        secure_url: { type: String, required: true },
+        public_id: { type: String, required: true, unique: true }
+    },
+    rate: { type: Number, default: 0 },
 
     /** Arrays */
     Images: [{

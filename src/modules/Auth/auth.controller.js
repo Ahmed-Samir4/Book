@@ -177,18 +177,26 @@ export const signIn = async (req, res, next) => {
     // get user by email
     const user = await User.findOne({ email, isEmailVerified: true })
     if (!user) {
-        return next(new Error('Invalid login credentails', { cause: 404 }))
+        return next(new Error('Invalid login credentials', { cause: 404 }))
     }
+
+    // Check if user is soft deleted
+    if (user.isDeleted) {
+        // Remove soft delete status
+        user.isDeleted = false
+        await user.save()
+    }
+
     // check password
     const isPasswordValid = bcrypt.compareSync(password, user.password)
     if (!isPasswordValid) {
-        return next(new Error('Invalid login credentails', { cause: 404 }))
+        return next(new Error('Invalid login credentials', { cause: 404 }))
     }
 
     // generate login token
     const token = jwt.sign({ email, id: user._id, loggedIn: true }, process.env.JWT_SECRET_LOGIN, { expiresIn: '1d' })
-    // updated isLoggedIn = true  in database
 
+    // update isLoggedIn = true in database
     user.isLoggedIn = true
     await user.save()
 
@@ -200,6 +208,38 @@ export const signIn = async (req, res, next) => {
         }
     })
 }
+
+// ========================================= Logout API ================================//
+/**
+ * destructuring token from the request query
+ * verify the token
+ * get user by email
+ * if not return error invalid token
+ * if found
+ * update isLoggedIn = false in database
+ * return the response
+ */
+export const logout = async (req, res, next) => {
+    const { token } = req.headers
+    const decodedData = jwt.verify(token, process.env.JWT_SECRET_LOGIN)
+    if (!decodedData?.email) {
+        return next(new Error('Invalid token', { cause: 400 }))
+    }
+    // get user by email
+    const user = await User.findOne({ email: decodedData.email })
+    if (!user) {
+        return next(new Error('User not found', { cause: 404 }))
+    }
+    // update isLoggedIn = false in database
+    user.isLoggedIn = false
+    await user.save()
+
+    res.status(200).json({
+        success: true,
+        message: 'User logged out successfully'
+    })
+}
+    
 
 // ========================================= Forgot Password API ======================//
 /**

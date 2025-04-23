@@ -1,13 +1,25 @@
 // function to update the rate of a review
 
-import reviewModel from "../../../../DB/Models/review.model.js"
+import Review from '../../../../DB/Models/review.model.js'
 
-export const updateRate = async (productId) => {
-    const reviews = await reviewModel.find({ productId })
-    let sumOfRates = 0
-    for (const review of reviews) {
-        sumOfRates += review.reviewRate
+export const updateRate = async (bookId) => {
+    try {
+        // Get all reviews for the book
+        const reviews = await Review.find({ bookId })
+        
+        // If there are no reviews, return 0
+        if (!reviews.length) {
+            return 0
+        }
+
+        // Calculate the average rate
+        const totalRate = reviews.reduce((sum, review) => sum + review.reviewRate, 0)
+        const averageRate = totalRate / reviews.length
+
+        // Round to 1 decimal place
+        return Math.round(averageRate * 10) / 10
+    } catch (error) {
+        console.error('Error in updateRate:', error)
+        return 0 // Return 0 if there's an error
     }
-    const averageRate = Number(sumOfRates / reviews.length).toFixed(2)
-    return averageRate
 }

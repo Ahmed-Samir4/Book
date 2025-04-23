@@ -1,92 +1,120 @@
-// import Order from '../../../DB/Models/order.model.js'
-// import Product from '../../../DB/Models/product.model.js'
-// import Review from '../../../DB/Models/review.model.js'
-// import { updateRate } from './utils/updateRate.js'
+import Book from '../../../DB/Models/book.model.js'
+import Review from '../../../DB/Models/review.model.js'
+import { updateRate } from './utils/updateRate.js'
 
-// /**
-//  * @name addReview
-//  * @query productId
-//  * @body reviewRate, reviewComment
-//  * @description add review to the product if the user bought the product before and didn't review it before and update the product rate
-//  */
-// export const addReview = async (req, res, next) => {
-//     const userId = req.authUser._id
-//     const { productId } = req.query
+/**
+ * @name addReview
+ * @query bookId
+ * @body reviewRate, reviewComment
+ * @description Add a review to a book if the user hasn't reviewed it before and update the book's rating
+ */
+export const addReview = async (req, res, next) => {
+    const userId = req.authUser._id
+    const { bookId } = req.query
+    const { reviewRate, reviewComment } = req.body
 
-//     // 1- check if the user bought the product before
-//     const isProductValidToBeReviewed = await Order.findOne({
-//         user: userId,
-//         'orderItems.product' : productId,
-//         orderStatus: 'Delivered',
-//     })
-//     if (!isProductValidToBeReviewed) {
-//         return next(new Error('you should buy the product first', { cause: 400 }))
-//     }
-//     // 2- check if the user reviewed the product before
-//     const isProductReviewedBefore = await Review.findOne({
-//         userId,
-//         productId,
-//     })
-//     if (isProductReviewedBefore) {
-//         return next(new Error('you reviewed the product before', { cause: 400 }))
-//     }
-//     // 3- add the review
-//     const { reviewRate, reviewComment } = req.body;
-//     const reviewObject = {
-//         userId,
-//         productId,
-//         reviewComment,
-//         reviewRate,
-//     }  
-//     const review = await Review.create(reviewObject)
-//     if (!review) {
-//         return next(new Error('failed to add the review', { cause: 500 }))
-//     }
-//     // 4- update the product rate
-//     const product = await Product.findById(productId)
-//     product.rate = await updateRate(productId)
-//     await product.save()
+    // Check if the book exists
+    const book = await Book.findById(bookId)
+    if (!book) {
+        return next(new Error('Book not found', { cause: 404 }))
+    }
 
-//     res.status(201).json({
-//         status: 'success',
-//         data: review,
-//     })
-// }
+    // Check if the user has already reviewed this book
+    const existingReview = await Review.findOne({
+        userId,
+        bookId
+    })
+    if (existingReview) {
+        return next(new Error('You have already reviewed this book', { cause: 400 }))
+    }
 
-// /**
-//  * @name deleteReview
-//  * @query productId
-//  * @description delete the review of the product and update the product rate
-//  */
-// export const deleteReview = async (req, res, next) => {
-//     const userId = req.authUser._id
-//     const { productId } = req.query
-//     // 1- delete the review
-//     const review = await Review.findOneAndDelete({ userId, productId })
-//     if (!review) {
-//         return next(new Error('failed to delete the review', { cause: 500 }))
-//     }
-//     // 2- update the product rate
-//     const product = await Product.findById(productId)
-//     product.rate = await updateRate(productId)
-//     await product.save()
+    // Create the review
+    const review = await Review.create({
+        userId,
+        bookId,
+        reviewRate,
+        reviewComment
+    })
+    if (!review) {
+        return next(new Error('Failed to add review', { cause: 500 }))
+    }
 
-//     res.status(200).json({
-//         status: 'success',
-//         data: review,
-//     })
-// }
+    // Update book rating using the utility function
+    const newRate = await updateRate(bookId)
+    book.rate = newRate
+    await book.save()
 
-// /**
-//  * @name getReviews
-//  * @query productId
-//  * @description get the reviews of the specific product
-//  */
-// export const getReviews = async (req, res, next) => {
-//     const { productId } = req.query
-//     const reviews = await Review.find({ productId }).populate('userId', 'name email')
-//     res.status(200).json({
-//         status: 'success',
-//         data: reviews,
-//     })
-// }
+    res.status(201).json({
+        status: 'success',
+        message: 'Review added successfully',
+        data: review
+    })
+}
+
+/**
+ * @name deleteReview
+ * @query bookId
+ * @description Delete a review and update the book's rating
+ */
+export const deleteReview = async (req, res, next) => {
+    const userId = req.authUser._id
+    const { bookId } = req.query
+
+    // Check if the book exists
+    const book = await Book.findById(bookId)
+    if (!book) {
+        return next(new Error('Book not found', { cause: 404 }))
+    }
+
+    // Delete the review
+    const review = await Review.findOneAndDelete({ userId, bookId })
+    if (!review) {
+        return next(new Error('Review not found', { cause: 404 }))
+    }
+
+    try {
+        // Update book rating using the utility function
+        const newRate = await updateRate(bookId)
+        book.rate = newRate
+        await book.save()
+
+        res.status(200).json({
+            status: 'success',
+            message: 'Review deleted successfully',
+            data: review
+        })
+    } catch (error) {
+        console.error('Error updating book rate:', error)
+        // Even if rate update fails, still return success for review deletion
+        res.status(200).json({
+            status: 'success',
+            message: 'Review deleted successfully',
+            data: review
+        })
+    }
+}
+
+/**
+ * @name getReviews
+ * @query bookId
+ * @description Get all reviews for a specific book with user details
+ */
+export const getReviews = async (req, res, next) => {
+    const { bookId } = req.query
+
+    // Check if the book exists
+    const book = await Book.findById(bookId)
+    if (!book) {
+        return next(new Error('Book not found', { cause: 404 }))
+    }
+
+    const reviews = await Review.find({ bookId })
+        .populate('userId', 'username email')
+        .sort({ createdAt: -1 })
+        .select('-__v -updatedAt')
+
+    res.status(200).json({
+        status: 'success',
+        data: reviews
+    })
+}

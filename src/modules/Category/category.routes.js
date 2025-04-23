@@ -15,17 +15,17 @@ const router = Router();
 router.post('/',
     auth(endPointsRoles.ADD_CATEGORY),
     validationMiddleware(addCategorySchema),
-    multerMiddleHost({
-        extensions: allowedExtensions.image
-    }).single('image'),
+    multerMiddleHost([
+        { name: 'image', maxCount: 1, extensions: allowedExtensions.image }
+    ]),
     expressAsyncHandler(categoryController.addCategory))
 
 router.put('/:categoryId',
     auth(endPointsRoles.ADD_CATEGORY),
     validationMiddleware(updateCategorySchema),
-    multerMiddleHost({
-        extensions: allowedExtensions.image
-    }).single('image'),
+    multerMiddleHost([
+        { name: 'image', maxCount: 1, extensions: allowedExtensions.image }
+    ]),
     expressAsyncHandler(categoryController.updateCategory))
 
 router.get('/:categoryId',

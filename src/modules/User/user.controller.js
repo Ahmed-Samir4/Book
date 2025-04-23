@@ -1,5 +1,6 @@
 import User from "../../../DB/Models/user.model.js";
 import bcrypt from "bcrypt";
+import { systemRoles } from "../../utils/system-roles.js";
 /**
  * @name updateUser
  * @param userId 
@@ -99,21 +100,27 @@ export const deleteUser = async (req, res, next) => {
  * @description get user by id and soft delete it after checking if the user is the same as the logged in user
  */
 export const softDeleteUser = async (req, res, next) => {
-    // 1- destruct _id from the request authUser
     const { _id } = req.authUser
-    // 2- destruct userId from the request params
     const { userId } = req.params
-    // 3- check if user exists 
     const user = await User.findById(userId)
     if (!user) {
         return next({ cause: 404, message: 'User not found' })
     }
-    // 4- soft delete user
+
+    // Check authorization
+    if (
+        req.authUser.role !== systemRoles.SUPER_ADMIN &&
+        user._id.toString() !== _id.toString()
+    ) return next({ cause: 403, message: 'You are not authorized to soft delete this user' })
+
+    // Soft delete user and log them out
     user.isDeleted = true
+    user.isLoggedIn = false
     await user.save()
+
     res.status(200).json({
         success: true,
-        message: 'User soft deleted successfully',
+        message: 'User soft deleted and logged out successfully'
     })
 }
 
@@ -123,6 +130,7 @@ export const softDeleteUser = async (req, res, next) => {
  * @description get user by id and return it after checking if the user exists without the password and the __v field
  */
 export const getUserData = async (req, res, next) => {
+    console.log(req.params)
     // 1- destruct userId from the request params
     const { userId } = req.params
     // 2- check if user exists

@@ -9,4 +9,5 @@ export const endPointsRoles  = {
     GET_USER:[systemRoles.SUPER_ADMIN , systemRoles.ADMIN, systemRoles.USER],
     SOFT_DELETE_USER:[systemRoles.SUPER_ADMIN , systemRoles.ADMIN],
     UPDATE_PASSWORD:[systemRoles.SUPER_ADMIN , systemRoles.ADMIN, systemRoles.USER],
+    GET_ALL_AUTHORS: [systemRoles.USER, systemRoles.ADMIN, systemRoles.SUPER_ADMIN]
 }

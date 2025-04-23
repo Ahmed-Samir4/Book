@@ -6,18 +6,18 @@ export const addReviewSchema = Joi.object({
         reviewComment: Joi.string().required(),
     }),
     query: Joi.object({
-        productId: Joi.string().required(),
+        bookId: Joi.string().required(),
     })
 })
 
 export const deleteReviewSchema = Joi.object({
     query: Joi.object({
-        productId: Joi.string().required(),
+        bookId: Joi.string().required(),
     })
 })
 
 export const getReviewsSchema = Joi.object({
     query: Joi.object({
-        productId: Joi.string().required(),
+        bookId: Joi.string().required(),
     })
 })

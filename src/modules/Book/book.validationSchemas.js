@@ -12,6 +12,11 @@ export const addBookSchema = Joi.object({
         categoryId: Joi.string().hex().length(24).required(),
         authorId: Joi.string().hex().length(24).required(),
     }),
+    files: Joi.object({
+        coverImage: Joi.array().items(Joi.object()).length(1).required(),
+        images: Joi.array().items(Joi.object()).optional(),
+        pdf: Joi.array().items(Joi.object()).length(1).required(),
+    }).required(),
 });
 
 export const updateBookSchema = Joi.object({
@@ -21,10 +26,16 @@ export const updateBookSchema = Joi.object({
         language: Joi.string().optional(),
         releaseDate: Joi.date().optional(),
         pages: Joi.string().optional(),
+        oldPublicId: Joi.string().optional(),
     }),
     params: Joi.object({
         bookId: Joi.string().hex().length(24).required()
     }),
+    files: Joi.object({
+        coverImage: Joi.array().items(Joi.object()).length(1).optional(),
+        images: Joi.array().items(Joi.object()).optional(),
+        pdf: Joi.array().items(Joi.object()).length(1).optional(),
+    }).optional(),
 });
 
 export const getAllBooksSchema = Joi.object({
