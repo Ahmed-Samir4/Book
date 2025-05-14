@@ -12,6 +12,14 @@ const userSchema = new Schema({
         tirm: true,
         lowercase: true
     },
+    fullName: {
+        type: String,
+        required: true,
+        minlength: 3,
+        maxlength: 20,
+        tirm: true,
+        lowercase: true
+    },
     email: {
         type: String,
         required: true,
@@ -60,7 +68,22 @@ const userSchema = new Schema({
         public_id: {
             type: String,
         }
-    }
+    },
+    folderId: {
+        type: String,
+    },
+    booksRead: [
+        {
+            type: Schema.Types.ObjectId,
+            ref: 'Book'
+        }
+    ],
+    booksFavorites: [
+        {
+            type: Schema.Types.ObjectId,
+            ref: 'Book'
+        }
+    ]
 }, { timestamps: true })
 
 export default mongoose.models.User || model('User', userSchema)

@@ -1,10 +1,12 @@
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
+import { nanoid } from 'nanoid'
 
 import User from "../../../DB/Models/user.model.js"
 import sendEmailService from "../../services/send-email.service.js"
-import { nanoid } from 'nanoid'
-
+import cloudinaryConnection from "../../utils/cloudinary.js"
+import fs from 'fs'
+import  generateUniqueString from '../../utils/generate-unique-string.js'
 
 // ========================================= SignUp API ================================//
 
@@ -17,62 +19,87 @@ import { nanoid } from 'nanoid'
  * return the response
  */
 export const signUp = async (req, res, next) => {
-    // 1- destructure the required data from the request body 
-    const {
-        username,
-        email,
-        password,
-        age,
-        role,
-    } = req.body
+    try {
+        // 1- destructure the required data from the request body 
+        const {
+            username,
+            fullName,
+            email,
+            password,
+            age,
+            role,
+        } = req.body
 
 
-    // 2- check if the user already exists in the database using the email
-    const isEmailDuplicated = await User.findOne({ email })
-    if (isEmailDuplicated) {
-        return next(new Error('Email already exists,Please try another email', { cause: 409 }))
-    }
-    // 3- send confirmation email to the user
-    const usertoken = jwt.sign({ email }, process.env.JWT_SECRET_VERFICATION, { expiresIn: '2m' })
-    const refreshToken = jwt.sign({ email }, process.env.JWT_SECRET_VERFICATION, { expiresIn: '1d' })
-
-    const isEmailSent = await sendEmailService({
-        to: email,
-        subject: 'Email Verification',
-        message: `
-        <h2>please click on this link to verify your email</h2>
-        <a href="http://localhost:3000/auth/verify-email?token=${usertoken}">Verify Email</a>
-        <h2>please click on this link to refresh your token</h2>
-        <a href="http://localhost:3000/auth/refresh-token?token=${refreshToken}">Refresh Token</a>
-        `
-    })
-    // 4- check if email is sent successfully
-    if (!isEmailSent) {
-        return next(new Error('Email is not sent, please try again later', { cause: 500 }))
-    }
-    // 5- password hashing
-    const hashedPassword = bcrypt.hashSync(password, +process.env.SALT_ROUNDS)
-
-    // 6- create new document in the database
-    const newUser = await User.create({
-        username,
-        email,
-        password: hashedPassword,
-        age,
-        role: role || 'user',
-    })
-
-    // 7- return the response
-    res.status(201).json({
-        success: true,
-        message: 'User created successfully, please check your email to verify your account',
-        data: {
-            name: newUser.username,
-            email: newUser.email,
-            age: newUser.age,
-            role: newUser.role
+        // 2- check if the user already exists in the database using the email
+        const isEmailDuplicated = await User.findOne({ email })
+        if (isEmailDuplicated) {
+            return next(new Error('Email already exists,Please try another email', { cause: 409 }))
         }
-    })
+        // 3- send confirmation email to the user
+        const usertoken = jwt.sign({ email }, process.env.JWT_SECRET_VERFICATION, { expiresIn: '2m' })
+        const refreshToken = jwt.sign({ email }, process.env.JWT_SECRET_VERFICATION, { expiresIn: '1d' })
+
+        const isEmailSent = await sendEmailService({
+            to: email,
+            subject: 'Email Verification',
+            message: `
+            <h2>please click on this link to verify your email</h2>
+            <a href="http://localhost:3000/auth/verify-email?token=${usertoken}">Verify Email</a>
+            <h2>please click on this link to refresh your token</h2>
+            <a href="http://localhost:3000/auth/refresh-token?token=${refreshToken}">Refresh Token</a>
+            `
+        })
+        // 4- check if email is sent successfully
+        if (!isEmailSent) {
+            return next(new Error('Email is not sent, please try again later', { cause: 500 }))
+        }
+        // 5- password hashing
+        const hashedPassword = bcrypt.hashSync(password, +process.env.SALT_ROUNDS)
+
+        // 6- handle image upload if provided
+        let imageData = {};
+        if (req.file) {
+            const cloudinary = cloudinaryConnection();
+            const folderId = generateUniqueString(4)
+            const { secure_url, public_id } = await cloudinary.uploader.upload(req.file.path, {
+                folder: `${process.env.MAIN_FOLDER}/Users/${folderId}`
+            });
+            
+            // Delete file from server after upload
+            fs.unlinkSync(req.file.path);
+            
+            // Set image data
+            imageData = { secure_url, public_id };
+        }
+
+        // 7- create new document in the database
+        const newUser = await User.create({
+            username,
+            fullName,
+            email,
+            password: hashedPassword,
+            age,
+            role: role || 'user',
+            ...(Object.keys(imageData).length && { image: imageData })
+        })
+
+        // 8- return the response
+        res.status(201).json({
+            success: true,
+            message: 'User created successfully, please check your email to verify your account',
+            data: {
+                name: newUser.username,
+                fullName: newUser.fullName,
+                email: newUser.email,
+                age: newUser.age,
+                role: newUser.role,
+                ...(newUser.image && { image: newUser.image })
+            }
+        })
+    } catch (error) {
+        next(error);
+    }
 }
 
 
