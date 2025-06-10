@@ -63,7 +63,9 @@ export class APIFeatures {
         if (search.description) queryFiler.description = { $regex: search.description, $options: 'i' }
         if (search.language) queryFiler.language = { $regex: search.language, $options: 'i' }
         if (search.releaseDate) queryFiler.releaseDate = { $regex: search.releaseDate, $options: 'i' }
-
+        // if (search.authorId.username) queryFiler.authorId.username = { $regex: search.authorId.username, $options: 'i' }
+        // if (search.authorId.email) queryFiler.authorId.email = { $regex: search.authorId.email, $options: 'i' }
+        // if(search.categoryId.name) queryFiler.categoryId.name = { $regex: search.categoryId.name, $options: 'i' }
         this.mongooseQuery = this.mongooseQuery.find(queryFiler)
         return this
     }

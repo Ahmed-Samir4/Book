@@ -7,7 +7,13 @@ import { multerMiddleHost } from '../../middlewares/multer.js'
 import { allowedExtensions } from '../../utils/allowed-extensions.js'
 import { endPointsRoles } from './book.endpoints.js'
 import { validationMiddleware } from '../../middlewares/validation.middleware.js'
-import { addBookSchema, getAllBooksSchema, updateBookSchema } from './book.validationSchemas.js'
+import { 
+    addBookSchema, 
+    getAllBooksSchema, 
+    updateBookSchema,
+    getSpecialBookSchema,
+    updateSpecialBookPagesSchema 
+} from './book.validationSchemas.js'
 
 const router = Router()
 
@@ -45,6 +51,24 @@ router.get('/:bookId',
 router.delete('/:bookId',
     auth(endPointsRoles.ADD_BOOK),
     expressAsyncHandler(bookController.deleteBook)
+)
+
+router.get('/category/:categoryId',
+    expressAsyncHandler(bookController.getBooksByCategory)
+)
+
+router.get('/author/:authorName',
+    expressAsyncHandler(bookController.getBooksByAuthor)
+)
+
+router.get('/special/:bookId',
+    validationMiddleware(getSpecialBookSchema),
+    expressAsyncHandler(bookController.getSpecialBook)
+)
+
+router.put('/special/:bookId/pages',
+    validationMiddleware(updateSpecialBookPagesSchema),
+    expressAsyncHandler(bookController.updateSpecialBookPages)
 )
 
 export default router

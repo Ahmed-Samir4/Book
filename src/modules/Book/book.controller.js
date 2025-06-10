@@ -8,6 +8,7 @@ import { systemRoles } from "../../utils/system-roles.js"
 import cloudinaryConnection from "../../utils/cloudinary.js"
 import generateUniqueString from "../../utils/generate-Unique-String.js"
 import { APIFeatures } from "../../utils/api-features.js"
+import SpecialBook from "../../../DB/Models/specialBook.model.js"
 
 
 /**
@@ -137,17 +138,26 @@ export const updateBook = async (req, res, next) => {
     try {
         // Handle file updates
         const fileOperations = []
+        const uploadedFiles = {
+            coverImage: null,
+            pdf: null,
+            images: []
+        }
 
         // Update cover image if provided
         if (req.files?.coverImage?.[0]) {
             fileOperations.push(async () => {
                 try {
+                    // Delete old cover image if exists
+                    if (book.coverImage?.public_id) {
+                        await cloudinaryConnection().uploader.destroy(book.coverImage.public_id)
+                    }
+
                     // Upload new cover image
                     const { secure_url, public_id } = await cloudinaryConnection().uploader.upload(req.files.coverImage[0].path, {
                         folder: `${process.env.MAIN_FOLDER}/Categories/${book.categoryFolderId}/Books/${book.folderId}/cover`
                     })
-                    book.coverImage = { secure_url, public_id }
-                    console.log('Uploaded new cover image:', public_id)
+                    uploadedFiles.coverImage = { secure_url, public_id }
 
                     // Clean up local file
                     fs.unlinkSync(req.files.coverImage[0].path)
@@ -162,13 +172,17 @@ export const updateBook = async (req, res, next) => {
         if (req.files?.pdf?.[0]) {
             fileOperations.push(async () => {
                 try {
+                    // Delete old PDF if exists
+                    if (book.pdf?.public_id) {
+                        await cloudinaryConnection().uploader.destroy(book.pdf.public_id, { resource_type: 'raw' })
+                    }
+
                     // Upload new PDF
                     const { secure_url, public_id } = await cloudinaryConnection().uploader.upload(req.files.pdf[0].path, {
                         folder: `${process.env.MAIN_FOLDER}/Categories/${book.categoryFolderId}/Books/${book.folderId}/pdf`,
                         resource_type: 'raw'
                     })
-                    book.pdf = { secure_url, public_id }
-                    console.log('Uploaded new PDF:', public_id)
+                    uploadedFiles.pdf = { secure_url, public_id }
 
                     // Clean up local file
                     fs.unlinkSync(req.files.pdf[0].path)
@@ -183,13 +197,21 @@ export const updateBook = async (req, res, next) => {
         if (req.files?.images?.length) {
             fileOperations.push(async () => {
                 try {
+                    // Delete old images if they exist
+                    if (book.Images?.length) {
+                        for (const image of book.Images) {
+                            if (image.public_id) {
+                                await cloudinaryConnection().uploader.destroy(image.public_id)
+                            }
+                        }
+                    }
+
                     // Upload new images
                     for (const file of req.files.images) {
                         const { secure_url, public_id } = await cloudinaryConnection().uploader.upload(file.path, {
                             folder: `${process.env.MAIN_FOLDER}/Categories/${book.categoryFolderId}/Books/${book.folderId}/images`
                         })
-                        book.Images.push({ secure_url, public_id })
-                        console.log('Uploaded new image:', public_id)
+                        uploadedFiles.images.push({ secure_url, public_id })
 
                         // Clean up local file
                         fs.unlinkSync(file.path)
@@ -204,10 +226,37 @@ export const updateBook = async (req, res, next) => {
         // Execute all file operations
         await Promise.all(fileOperations.map(op => op()))
 
-        // Save the book after all file operations are complete
-        await book.save()
+        // Update book with uploaded files only if new files were uploaded
+        if (uploadedFiles.coverImage) {
+            book.coverImage = uploadedFiles.coverImage
+        }
+        if (uploadedFiles.pdf) {
+            book.pdf = uploadedFiles.pdf
+        }
+        if (uploadedFiles.images.length > 0) {
+            book.Images = uploadedFiles.images
+        }
 
-        res.status(200).json({ success: true, message: 'Book updated successfully', data: book })
+        // Ensure required fields are present
+        if (!book.pdf?.secure_url) {
+            book.pdf = book.pdf || {}
+            book.pdf.secure_url = book.pdf.secure_url || ''
+        }
+        if (!book.Images?.length) {
+            book.Images = []
+        }
+
+        // Save the book after all file operations are complete
+        const updatedBook = await book.save()
+        if (!updatedBook) {
+            throw new Error('Failed to save book updates to database')
+        }
+
+        res.status(200).json({ 
+            success: true, 
+            message: 'Book updated successfully', 
+            data: updatedBook 
+        })
     } catch (error) {
         console.error('Error in updateBook:', error)
         
@@ -226,7 +275,31 @@ export const updateBook = async (req, res, next) => {
             }
         }
 
-        return next({ cause: 500, message: 'Error updating book files', error: error.message })
+        // If we have uploaded files but failed to save to database, clean up from Cloudinary
+        if (error.message === 'Failed to save book updates to database') {
+            try {
+                if (uploadedFiles.coverImage?.public_id) {
+                    await cloudinaryConnection().uploader.destroy(uploadedFiles.coverImage.public_id)
+                }
+                if (uploadedFiles.pdf?.public_id) {
+                    await cloudinaryConnection().uploader.destroy(uploadedFiles.pdf.public_id, { resource_type: 'raw' })
+                }
+                for (const image of uploadedFiles.images) {
+                    if (image.public_id) {
+                        await cloudinaryConnection().uploader.destroy(image.public_id)
+                    }
+                }
+            } catch (cleanupError) {
+                console.error('Error cleaning up Cloudinary files:', cleanupError)
+            }
+        }
+
+        return next({ 
+            cause: 500, 
+            message: 'Error updating book files', 
+            error: error.message,
+            details: error.errors || error.stack
+        })
     }
 }
 
@@ -368,7 +441,7 @@ export const getAllBooks = async (req, res, next) => {
     features.mongooseQuery = features.mongooseQuery
         .populate({ 
             path: 'authorId', 
-            select: 'username email profileImage' 
+            select: 'username fullName email profileImage' 
         })
         .populate({ 
             path: 'categoryId', 
@@ -383,8 +456,7 @@ export const getAllBooks = async (req, res, next) => {
         data: books,
         pagination: {
             page: parseInt(page) || 1,
-            size: parseInt(size) || 10,
-            total: await Book.countDocuments(features.mongooseQuery._conditions)
+            size: parseInt(size) || 2,
         }
     })
 }
@@ -402,7 +474,7 @@ export const getBookById = async (req, res, next) => {
     const book = await Book.findById(bookId)
         .populate({ 
             path: 'authorId', 
-            select: 'username email profileImage description age' 
+            select: 'username fullName email profileImage description age' 
         })
         .populate({ 
             path: 'categoryId', 
@@ -417,3 +489,163 @@ export const getBookById = async (req, res, next) => {
         data: book 
     })
 }
+
+/**
+ * @name getBooksByCategory
+ * @param {*} req params: {categoryId}
+ * @param {*} req query: {page, size, sort}
+ * @returns books in the specified category with status 200 and success message
+ * @description get all books that belong to a specific category
+ */
+export const getBooksByCategory = async (req, res, next) => {
+    const { categoryId } = req.params
+    const { page, size, sort } = req.query
+
+    // Check if category exists
+    const category = await Category.findById(categoryId)
+    if (!category) return next({ cause: 404, message: 'Category not found' })
+
+    const features = new APIFeatures(req.query, Book.find({ categoryId }))
+        .sort(sort)
+        .pagination({ page, size })
+
+    // Populate author and category information
+    features.mongooseQuery = features.mongooseQuery
+        .populate({ 
+            path: 'authorId', 
+            select: 'username fullName email profileImage' 
+        })
+        .populate({ 
+            path: 'categoryId', 
+            select: 'name description' 
+        })
+        .select('-__v -createdAt -updatedAt -folderId -categoryFolderId')
+
+    const books = await features.mongooseQuery
+    
+    res.status(200).json({ 
+        success: true, 
+        data: books,
+        pagination: {
+            page: parseInt(page) || 1,
+            size: parseInt(size) || 10,
+            total: await Book.countDocuments({ categoryId })
+        }
+    })
+}
+
+/**
+ * @name getBooksByAuthor
+ * @param {*} req params: {authorName}
+ * @param {*} req query: {page, size, sort}
+ * @returns books by the specified author with status 200 and success message
+ * @description get all books written by a specific author, searching by username or full name
+ */
+export const getBooksByAuthor = async (req, res, next) => {
+    const { authorName } = req.params
+    const { page, size, sort } = req.query
+
+    // Find authors by username or full name
+    const authors = await User.find({
+        $or: [
+            { username: { $regex: authorName, $options: 'i' } },
+            { fullName: { $regex: authorName, $options: 'i' } }
+        ],
+        role: systemRoles.AUTHOR
+    })
+
+    if (!authors.length) return next({ cause: 404, message: 'No authors found with this name' })
+
+    // Get all author IDs
+    const authorIds = authors.map(author => author._id)
+
+    const features = new APIFeatures(req.query, Book.find({ authorId: { $in: authorIds } }))
+        .sort(sort)
+        .pagination({ page, size })
+
+    // Populate author and category information
+    features.mongooseQuery = features.mongooseQuery
+        .populate({ 
+            path: 'authorId', 
+            select: 'username fullName email profileImage' 
+        })
+        .populate({ 
+            path: 'categoryId', 
+            select: 'name description' 
+        })
+        .select('-__v -createdAt -updatedAt -folderId -categoryFolderId')
+
+    const books = await features.mongooseQuery
+    
+    res.status(200).json({ 
+        success: true, 
+        data: books,
+        pagination: {
+            page: parseInt(page) || 1,
+            size: parseInt(size) || 10,
+            total: await Book.countDocuments({ authorId: { $in: authorIds } })
+        }
+    })
+}
+
+/**
+ * @name getSpecialBook
+ * @param {*} req params: {bookId}
+ * @returns the special book data with status 200 and success message
+ * @description get a special book from the database
+ */
+export const getSpecialBook = async (req, res, next) => {
+    const { bookId } = req.params
+
+    const specialBook = await SpecialBook.findById(bookId)
+        .populate({ 
+            path: 'addedBy', 
+            select: 'username fullName email profileImage' 
+        })
+        .populate({
+            path: 'authorId',
+            select: 'username fullName email profileImage'
+        })
+        .select('-__v')
+
+    if (!specialBook) return next({ cause: 404, message: 'Special book not found' })
+
+    res.status(200).json({ 
+        success: true, 
+        data: specialBook 
+    })
+}
+
+/**
+ * @name updateSpecialBookPages
+ * @param {*} req params: {bookId}
+ * @param {*} req body: {pages: [{page: number, text: string}], authorId: string}
+ * @returns the updated special book data with status 200 and success message
+ * @description update pages text in a special book
+ */
+export const updateSpecialBookPages = async (req, res, next) => {
+    const { bookId } = req.params
+    const { pages, authorId } = req.body
+
+    // Find the special book
+    const specialBook = await SpecialBook.findById(bookId)
+    if (!specialBook) return next({ cause: 404, message: 'Special book not found' })
+
+    // Check if author exists
+    const author = await User.findById(authorId)
+    if (!author) return next({ cause: 404, message: 'Author not found' })
+
+    // Update pages and author
+    specialBook.pages = pages
+    specialBook.authorId = authorId
+
+    await specialBook.save()
+
+    res.status(200).json({ 
+        success: true, 
+        message: 'Special book pages updated successfully',
+        data: specialBook 
+    })
+}
+
+

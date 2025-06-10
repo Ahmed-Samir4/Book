@@ -45,3 +45,24 @@ export const getAllBooksSchema = Joi.object({
         sortBy: Joi.string().optional(),
     })
 });
+
+export const getSpecialBookSchema = Joi.object({
+    params: Joi.object({
+        bookId: Joi.string().hex().length(24).required()
+    })
+});
+
+export const updateSpecialBookPagesSchema = Joi.object({
+    params: Joi.object({
+        bookId: Joi.string().hex().length(24).required()
+    }),
+    body: Joi.object({
+        pages: Joi.array().items(
+            Joi.object({
+                page: Joi.number().required(),
+                text: Joi.string().required()
+            })
+        ).required(),
+        authorId: Joi.string().hex().length(24).required()
+    })
+});

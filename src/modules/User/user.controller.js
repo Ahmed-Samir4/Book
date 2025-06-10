@@ -235,23 +235,23 @@ export const updateProfileImage = async (req, res, next) => {
         }
 
         // Check if user is authorized to update this profile
-        if (user._id.toString() !== _id.toString()) {
-            return next({ cause: 403, message: 'You are not authorized to update this user' });
-        }
-
+        // if (user._id.toString() !== _id.toString()) {
+        //     return next({ cause: 403, message: 'You are not authorized to update this user' });
+        // }
         // Check if a file was uploaded
         if (!req.file) {
             return next({ cause: 400, message: 'No image file provided' });
         }
-
+        
         // Upload to cloudinary
         const cloudinary = cloudinaryConnection();
         const filePath = req.file.path;
-
+        console.log(filePath)
         // If user already has an image, delete the old one from cloudinary
-        await cloudinaryConnection().api.delete_resources_by_prefix(`${process.env.MAIN_FOLDER}/Users/${user.folderId}`)
-        await cloudinaryConnection().api.delete_folder(`${process.env.MAIN_FOLDER}/Users/${user.folderId}`)
-
+        // await cloudinaryConnection().api.delete_resources_by_prefix(`${process.env.MAIN_FOLDER}/Users/${user.folderId}`)
+        // await cloudinaryConnection().api.delete_folder(`${process.env.MAIN_FOLDER}/Users/${user.folderId}`)
+        
+        console.log('test')
 
         // Upload new image
         const { secure_url, public_id } = await cloudinary.uploader.upload(filePath, {
