@@ -27,11 +27,11 @@ router.delete('/soft-delete/:userId', auth(endPointsRoles.SOFT_DELETE_USER),
     validationMiddleware(softDeleteUserSchema),
     expressAsyncHandler(userController.softDeleteUser))
 
-router.get('/authors', auth(endPointsRoles.GET_ALL_AUTHORS),
+router.get('/authors',
     validationMiddleware(getAllAuthorsSchema),
     expressAsyncHandler(userController.getAllAuthors))
 
-router.get('/:userId', auth(endPointsRoles.GET_USER),
+router.get('/:userId',
     validationMiddleware(getUserDataSchema),
     expressAsyncHandler(userController.getUserData))
 
